@@ -70,6 +70,7 @@ options =
     , oRestrictToNodes
     , oMonD
     , oMonDXen
+    , oStaticKvmNodeMemory
     ]
 
 -- | The list of arguments supported by the program.

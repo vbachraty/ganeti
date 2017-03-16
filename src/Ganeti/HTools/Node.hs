@@ -1,5 +1,4 @@
 {-| Module describing a node.
-
     All updates are functional (copy-based) and return a new node with
     updated value.
 -}
@@ -59,6 +58,7 @@ module Ganeti.HTools.Node
   , setMigrationTags
   , setRecvMigrationTags
   , setLocationTags
+  , setHypervisor
   -- * Tag maps
   , addTags
   , delTags
@@ -113,7 +113,7 @@ import Text.Printf (printf)
 
 import qualified Ganeti.Constants as C
 import qualified Ganeti.OpCodes as OpCodes
-import Ganeti.Types (OobCommand(..), TagKind(..), mkNonEmpty)
+import Ganeti.Types (Hypervisor(..), OobCommand(..), TagKind(..), mkNonEmpty)
 import Ganeti.HTools.Container (Container)
 import qualified Ganeti.HTools.Container as Container
 import Ganeti.HTools.Instance (Instance)
@@ -213,6 +213,7 @@ data Node = Node
   , instanceMap :: Map.Map (String, String) Int -- ^ Number of instances with
                                                 -- each exclusion/location tags
                                                 -- pair
+  , hypervisor :: Maybe Hypervisor -- ^ Active hypervisor on the node
   } deriving (Show, Eq)
 {- A note on how we handle spindles
 
@@ -378,6 +379,7 @@ create name_init mem_t_init mem_n_init mem_f_init
        , locationTags = Set.empty
        , locationScore = 0
        , instanceMap = Map.empty
+       , hypervisor = Nothing
        }
 
 -- | Conversion formula from mDsk\/tDsk to loDsk.
@@ -431,6 +433,10 @@ setLocationTags t val = t { locationTags = val }
 -- | Sets the unnaccounted memory.
 setXmem :: Node -> Int -> Node
 setXmem t val = t { xMem = val }
+
+-- | Sets the hypervisor attribute.
+setHypervisor :: Node -> Hypervisor -> Node
+setHypervisor t val = t { hypervisor = Just val }
 
 -- | Sets the max disk usage ratio.
 setMdsk :: Node -> Double -> Node

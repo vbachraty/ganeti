@@ -55,6 +55,7 @@ module Ganeti.HTools.Loader
   , emptyCluster
   , extractDesiredLocations
   , updateDesiredLocationTags
+  , setStaticKvmNodeMem
   ) where
 
 import Control.Monad
@@ -77,7 +78,7 @@ import qualified Ganeti.HTools.Tags as Tags
 import qualified Ganeti.HTools.Tags.Constants as TagsC
 import Ganeti.HTools.Types
 import Ganeti.Utils
-import Ganeti.Types (EvacMode)
+import Ganeti.Types (EvacMode, Hypervisor(..))
 
 -- * Types
 
@@ -371,6 +372,15 @@ clearDynU :: ClusterData -> Result ClusterData
 clearDynU cdata@(ClusterData _ _ il _ _) =
   let il2 = Container.map (\ inst -> inst {Instance.util = zeroUtil }) il
   in Ok cdata { cdInstances = il2 }
+
+-- | Update cluster data to use static node memory on KVM.
+setStaticKvmNodeMem :: ClusterData -> Int -> Result ClusterData
+setStaticKvmNodeMem cdata@(ClusterData _ node_l _ _ _) staticNodeMem =
+  let updateNMem n = if Node.hypervisor n == Just Kvm
+                     then staticNodeMem
+                     else Node.nMem n
+      node_l2 = Container.map (\n -> n { Node.nMem = updateNMem n }) node_l
+  in Ok cdata { cdNodes = node_l2 }
 
 -- | Checks the cluster data for consistency.
 checkData :: Node.List -> Instance.List
