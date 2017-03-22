@@ -56,6 +56,7 @@ module Ganeti.HTools.Loader
   , extractDesiredLocations
   , updateDesiredLocationTags
   , setStaticKvmNodeMem
+  , updateMemStat
   ) where
 
 import Control.Monad
@@ -363,8 +364,9 @@ mergeData um extags selinsts exinsts time cdata@(ClusterData gl nl il ctags _) =
                            (`Node.buildPeers` il4)) nl3
       il6 = Container.map (disableSplitMoves nl3) il5
       nl5 = Container.map (addMigrationTags ctags) nl4
+      nl6 = Container.map (`updateMemStat` il6) nl5
   in if' (null lkp_unknown)
-         (Ok cdata { cdNodes = nl5, cdInstances = il6 })
+         (Ok cdata { cdNodes = nl6, cdInstances = il6 })
          (Bad $ "Unknown instance(s): " ++ show(map lrContent lkp_unknown))
 
 -- | In a cluster description, clear dynamic utilisation information.
@@ -382,6 +384,12 @@ setStaticKvmNodeMem cdata@(ClusterData _ node_l _ _ _) staticNodeMem =
       node_l2 = Container.map (\n -> n { Node.nMem = updateNMem n }) node_l
   in Ok cdata { cdNodes = node_l2 }
 
+-- | Update node memory stat based on instance list.
+updateMemStat :: Node.Node -> Instance.List -> Node.Node
+updateMemStat node il =
+    let node2 = node { Node.iMem = nodeImem node il }
+    in node2 { Node.pMem = fromIntegral (Node.guaranteedFreeMem node2) / Node.tMem node2 }
+
 -- | Checks the cluster data for consistency.
 checkData :: Node.List -> Instance.List
           -> ([String], Node.List)
@@ -389,14 +397,11 @@ checkData nl il =
     Container.mapAccum
         (\ msgs node ->
              let nname = Node.name node
-                 delta_mem = truncate (Node.tMem node)
-                             - Node.nMem node
-                             - Node.fMem node
-                             - nodeImem node il
+                 delta_mem = Node.missingMem node
                  delta_dsk = truncate (Node.tDsk node)
                              - Node.fDsk node
                              - nodeIdsk node il
-                 newn = node `Node.setXmem` delta_mem
+                 newn = node { Node.xMem = delta_mem }
                  umsg1 =
                    if delta_mem > 512 || delta_dsk > 1024
                       then printf "node %s is missing %d MB ram \
